@@ -16,8 +16,11 @@ final class WindRotorRenderer {
 
     /** 塔顶轮毂：原版模型轮毂在塔身 4.5 格处，底座贴方块底面。 */
     private static final double HUB_HEIGHT = 4.5;
-    /** 轮毂平面在方块前缘内侧 2px：相对方块中心偏移 0.375 格。 */
-    private static final double HUB_FORWARD = 0.375;
+    /**
+     * 轮毂相对方块中心的前移。塔模型机舱中心在 z≈8.2（模型单位），相对方块中心只偏 ~0.03 格；
+     * 之前按"方块前缘内侧 2px"取的 0.375 格会把叶片整体往前推，视觉上就是叶片错位。
+     */
+    private static final double HUB_FORWARD = 0.0;
     private static final float SPIN_DEGREES_PER_TICK = 6.0f;
 
     private final MachineBlockEntityController controller;
@@ -31,6 +34,11 @@ final class WindRotorRenderer {
     void spawn() {
         World world = controller.world();
         if (world == null) {
+            return;
+        }
+        if (this.display != null && this.display.isValid()) {
+            // 重复 onLoad 不重建实体：只刷新变换，避免旧实体没删干净时越叠越多。
+            applyTransform();
             return;
         }
         remove();
@@ -86,7 +94,7 @@ final class WindRotorRenderer {
                 .rotationY((float) Math.toRadians(yaw()))
                 .mul(new Quaternionf().rotationZ((float) Math.toRadians(angle)));
         this.display.setTransformation(new Transformation(
-                new Vector3f(), rotation, new Vector3f(2.0f, 2.0f, 2.0f), new Quaternionf()));
+                new Vector3f(), rotation, new Vector3f(2.3594f, 2.3594f, 2.3594f), new Quaternionf()));
     }
 
     /** 与方块外观的 rotation 保持一致；item_display 自身还会再转 180°。 */
@@ -101,9 +109,15 @@ final class WindRotorRenderer {
     }
 
     void remove() {
-        if (this.display != null && this.display.isValid()) {
-            this.display.remove();
-        }
+        ItemDisplay current = this.display;
         this.display = null;
+        if (current != null) {
+            try {
+                // 不再判断 isValid()：卸载/重载竞态下它会返回 false，跳过删除就会漏实体。
+                current.remove();
+            } catch (RuntimeException ignored) {
+                // 实体已经不在世界（区块卸载/被清理）时不阻塞后续清理。
+            }
+        }
     }
 }

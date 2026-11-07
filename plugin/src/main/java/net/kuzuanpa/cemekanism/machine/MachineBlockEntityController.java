@@ -5,14 +5,19 @@ import mekcore.chemical.Chemicals;
 import mekcore.chemical.Radiation;
 import mekcore.item.ItemSlotSpec;
 import mekcore.item.ItemSlotKind;
+import mekcore.machine.Direction;
 import mekcore.machine.FactoryTier;
 import mekcore.machine.Machine;
 import mekcore.machine.MachineBlueprint;
 import mekcore.machine.SideMode;
 import mekcore.machine.WorkState;
+import mekcore.resource.ResourceStack;
+import mekcore.resource.ResourceTank;
+import mekcore.resource.Transaction;
 import mekcore.recipe.Recipe;
 import mekcore.sim.Tickable;
 import net.kuzuanpa.cemekanism.CeMekanismPlugin;
+import net.kuzuanpa.cemekanism.generated.GeneratedContent;
 import net.kuzuanpa.cemekanism.gui.GuiComponents;
 import net.kuzuanpa.cemekanism.gui.GuiLayout;
 import net.kuzuanpa.cemekanism.gui.GuiSessions;
@@ -74,6 +79,8 @@ public final class MachineBlockEntityController extends BlockEntityController {
     private final Object containerHandle;
     private String taskId;
     private final int infuseSlot;
+    /** 发电机（source）：每刻把缓存电量直接发射给相邻机器，复刻上游 TileEntityGenerator。 */
+    private final boolean energySource;
     private final WindRotorRenderer windRotor;
     private final EnergyCubeCoreRenderer energyCore;
     private final EnergyCubePortRenderer energyPorts;
@@ -115,6 +122,12 @@ public final class MachineBlockEntityController extends BlockEntityController {
                 // 储量变化必须能在休眠后唤醒；核心本身也按游戏刻持续旋转。
                 return true;
             }
+            if (MachineBlockEntityController.this.energySource
+                    && m.energyTank().map(tank -> tank.amount() > 0).orElse(false)) {
+                // 发电机缓存里有电就必须继续跑：上游每刻都会 emit 给相邻方块，缓存满了也不能睡，
+                // 否则贴在一起的机器永远等不到电。
+                return true;
+            }
             return MachineBlockEntityController.this.machine.needsTick()
                     || MachineBlockEntityController.this.infusionReady();
         }
@@ -124,6 +137,9 @@ public final class MachineBlockEntityController extends BlockEntityController {
             MachineBlockEntityController.this.feedInfusion();
             boolean dumping = MachineBlockEntityController.this.machine.hasDumpWork();
             long joules = MachineBlockEntityController.this.machine.tick();
+            if (MachineBlockEntityController.this.energySource) {
+                MachineBlockEntityController.this.pushAdjacentEnergy();
+            }
             if (MachineBlockEntityController.this.windRotor != null) {
                 MachineBlockEntityController.this.windRotor.tick();
             }
@@ -146,6 +162,81 @@ public final class MachineBlockEntityController extends BlockEntityController {
             return MachineBlockEntityController.this.machine.describe();
         }
     };
+
+    /**
+     * 上游 {@code TileEntityGenerator.onUpdateServer} 的邻面直供：发电机每刻把缓存电量
+     * 发射给"能量输出面"相邻的机器（不需要线缆）。线缆仍由电网从同一个缓存里拉，两者竞争，
+     * 谁先拿走算谁的；缓存被拉空后不再发送。
+     */
+    private void pushAdjacentEnergy() {
+        World world = world();
+        if (world == null) {
+            return;
+        }
+        ResourceTank source = this.machine.energyTank().orElse(null);
+        if (source == null || source.capacity() <= 0) {
+            return;
+        }
+        for (Direction direction : Direction.values()) {
+            if (source.amount() <= 0) {
+                return;
+            }
+            // 只从发电机自己的能量输出面发射（热力发电机默认 front，配置器可改）。
+            if (!this.machine.side(MachineBlueprint.ENERGY_PORT, direction).allowsExtract()) {
+                continue;
+            }
+            MachineBlockEntityController neighbour = this.plugin.machineAtQuiet(world,
+                    x() + offsetX(direction), y() + offsetY(direction), z() + offsetZ(direction));
+            if (neighbour == null || neighbour == this) {
+                continue;
+            }
+            Machine target = neighbour.machine();
+            ResourceTank tank = target.energyTank().orElse(null);
+            if (tank == null || tank.capacity() <= 0) {
+                continue;
+            }
+            if ("source".equals(GeneratedContent.MACHINE_ROLES.getOrDefault(
+                    target.blueprint().id(), "machine"))) {
+                continue;                                  // 发电机之间不互相推，避免来回搬电
+            }
+            if (!target.side(MachineBlueprint.ENERGY_PORT, direction.opposite()).allowsInsert()) {
+                continue;                                  // 目标那一面不是"能量输入"
+            }
+            long extracted = source.extract(source.amount(), Transaction.EXECUTE);
+            if (extracted <= 0) {
+                return;
+            }
+            long accepted = tank.insert(ResourceStack.energy(extracted), Transaction.EXECUTE);
+            if (accepted < extracted) {
+                // 目标只吃下一部分：剩下的还回自己，下一步交给线缆/下一个邻居。
+                source.insert(ResourceStack.energy(extracted - accepted), Transaction.EXECUTE);
+            }
+        }
+    }
+
+    private static int offsetX(Direction direction) {
+        return switch (direction) {
+            case EAST -> 1;
+            case WEST -> -1;
+            default -> 0;
+        };
+    }
+
+    private static int offsetY(Direction direction) {
+        return switch (direction) {
+            case UP -> 1;
+            case DOWN -> -1;
+            default -> 0;
+        };
+    }
+
+    private static int offsetZ(Direction direction) {
+        return switch (direction) {
+            case SOUTH -> 1;
+            case NORTH -> -1;
+            default -> 0;
+        };
+    }
 
     public MachineBlockEntityController(BlockEntity blockEntity, CeMekanismPlugin plugin) {
         super(blockEntity);
@@ -182,6 +273,9 @@ public final class MachineBlockEntityController extends BlockEntityController {
                 ? new EnergyCubePortRenderer(this) : null;
         GeneratorDefaults.apply(this.machine, blueprintId, facing());
         StorageRuntime.defaults(this.machine, facing());
+        // 普通机器没有默认面时补上能量输入/物品输入（上游 Mekanism 的默认口径），否则贴一起也收不到电。
+        MachineFaceDefaults.apply(this.machine);
+        this.energySource = "source".equals(GeneratedContent.MACHINE_ROLES.getOrDefault(blueprintId, "machine"));
         this.infuseSlot = this.handler.indexOf(InfusionFeeder.slotName());
         this.taskId = blueprintId + '@' + blockEntity.pos.x() + ',' + blockEntity.pos.y()
                 + ',' + blockEntity.pos.z();
@@ -342,8 +436,20 @@ public final class MachineBlockEntityController extends BlockEntityController {
         if (world == null) {
             return;
         }
-        this.machine.setPowered(world.getBlockAt(this.blockEntity.pos.x(), this.blockEntity.pos.y(),
-                this.blockEntity.pos.z()).isBlockPowered());
+        int bx = this.blockEntity.pos.x();
+        int by = this.blockEntity.pos.y();
+        int bz = this.blockEntity.pos.z();
+        // isBlockPowered() 会向六个方向读红石信号，隔壁区块没装载时 CraftBlock 会同步把区块拉起来。
+        // 在区块加载回调（onLoad → refreshRedstone）里踩到这一步，就会 加载→查邻居→再加载 级联下去。
+        // 所以只在本区块与 3×3 邻区块都就绪时才读真值；没就绪就跳过，下一趟 tick 还会再问。
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (!world.isChunkLoaded((bx >> 4) + dx, (bz >> 4) + dz)) {
+                    return;
+                }
+            }
+        }
+        this.machine.setPowered(world.getBlockAt(bx, by, bz).isBlockPowered());
     }
 
     /** 开界面：皮肤字形 + 槽位摆位 + 能量/流体/进度条；刷新由 GuiSessions 统一节流。 */
@@ -558,27 +664,49 @@ public final class MachineBlockEntityController extends BlockEntityController {
         this.pendingDrops.clear();
     }
 
+    /**
+     * 只移除本机器的显示实体（风力叶片/能量核心/端口/内容），不动存档与容器。
+     * 方块被玩家挖掉时 CE 不一定会走到 onRemove，所以由破坏事件兜底调用；幂等。
+     */
+    public void removeDisplays() {
+        safeUnload("wind_rotor", () -> {
+            if (this.windRotor != null) {
+                this.windRotor.remove();
+            }
+        });
+        safeUnload("energy_core", () -> {
+            if (this.energyCore != null) {
+                this.energyCore.remove();
+            }
+        });
+        safeUnload("energy_ports", () -> {
+            if (this.energyPorts != null) {
+                this.energyPorts.remove();
+            }
+        });
+        safeUnload("storage_contents", () -> this.storageContents.remove());
+    }
+
     @Override
     public void onUnload() {
-        World world = world();
+        // 显示实体先清：后面任何一步抛异常（CE 卸载失败重试）都不能把模型留在世界里。
+        removeDisplays();
+        World world;
+        try {
+            world = world();
+        } catch (RuntimeException e) {
+            warnUnload("world", e);
+            world = null;
+        }
         if (world != null) {
-            StorageRuntime.detach(this);
-            this.plugin.logistics(world).detachMachine(this);
-            this.plugin.radiation(world).unregister(this.taskId);
+            final World w = world;
+            safeUnload("storage", () -> StorageRuntime.detach(this));
+            safeUnload("logistics", () -> this.plugin.logistics(w).detachMachine(this));
+            safeUnload("radiation", () -> this.plugin.radiation(w).unregister(this.taskId));
         }
-        if (this.windRotor != null) {
-            this.windRotor.remove();
-        }
-        if (this.energyCore != null) {
-            this.energyCore.remove();
-        }
-        if (this.energyPorts != null) {
-            this.energyPorts.remove();
-        }
-        this.storageContents.remove();
         closeUpgradeInstallers();
         closeRecipeBrowsers();
-        this.plugin.guiSessions().close(this.holder);
+        safeUnload("gui", () -> this.plugin.guiSessions().close(this.holder));
         for (var viewer : List.copyOf(this.inventory.getViewers())) viewer.closeInventory();
         unregister();
         MachineContexts.detach(this.machine);
@@ -586,39 +714,55 @@ public final class MachineBlockEntityController extends BlockEntityController {
 
     @Override
     public void onRemove() {
-        World world = world();
+        removeDisplays();
+        World world;
+        try {
+            world = world();
+        } catch (RuntimeException e) {
+            warnUnload("world", e);
+            world = null;
+        }
         if (world != null) {
-            StorageRuntime.detach(this);
-            this.plugin.logistics(world).detachMachine(this);
-            this.plugin.radiation(world).unregister(this.taskId);
+            final World w = world;
+            safeUnload("storage", () -> StorageRuntime.detach(this));
+            safeUnload("logistics", () -> this.plugin.logistics(w).detachMachine(this));
+            safeUnload("radiation", () -> this.plugin.radiation(w).unregister(this.taskId));
         }
-        if (this.windRotor != null) {
-            this.windRotor.remove();
-        }
-        if (this.energyCore != null) {
-            this.energyCore.remove();
-        }
-        if (this.energyPorts != null) {
-            this.energyPorts.remove();
-        }
-        this.storageContents.remove();
         closeUpgradeInstallers();
         closeRecipeBrowsers();
-        StorageListener.refundBuffer(this);
-        this.plugin.guiSessions().close(this.holder);
+        safeUnload("refund", () -> StorageListener.refundBuffer(this));
+        safeUnload("gui", () -> this.plugin.guiSessions().close(this.holder));
         for (var viewer : List.copyOf(this.inventory.getViewers())) viewer.closeInventory();
         unregister();
         MachineContexts.detach(this.machine);
         if (world != null) {
-            Location at = new Location(world, this.blockEntity.pos.x() + 0.5,
-                    this.blockEntity.pos.y() + 0.5, this.blockEntity.pos.z() + 0.5);
-            for (ItemStack stack : this.inventory.getContents()) {
-                if (!this.suppressStorageDrops && stack != null && !stack.getType().isAir() && !GuiText.isOverlay(stack)) {
-                    world.dropItemNaturally(at, stack);
+            final World w = world;
+            safeUnload("drops", () -> {
+                Location at = new Location(w, this.blockEntity.pos.x() + 0.5,
+                        this.blockEntity.pos.y() + 0.5, this.blockEntity.pos.z() + 0.5);
+                for (ItemStack stack : this.inventory.getContents()) {
+                    if (!this.suppressStorageDrops && stack != null && !stack.getType().isAir()
+                            && !GuiText.isOverlay(stack)) {
+                        w.dropItemNaturally(at, stack);
+                    }
                 }
-            }
+            });
         }
         this.inventory.clear();
+    }
+
+    /** 卸载/销毁时每一步都独立兜底：CE 卸载失败会反复重试，绝不能让单点异常拖住整个卸载。 */
+    private void safeUnload(String step, Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException e) {
+            warnUnload(step, e);
+        }
+    }
+
+    private void warnUnload(String step, RuntimeException error) {
+        this.plugin.getLogger().log(java.util.logging.Level.WARNING,
+                "machine " + this.taskId + " unload step '" + step + "' failed", error);
     }
 
     @Override
@@ -663,6 +807,9 @@ public final class MachineBlockEntityController extends BlockEntityController {
                         this.taskId, e.getMessage()));
             }
         }
+        // 旧版本存档里的机器六面全是「关」：读档后补一次默认输入面，否则老存档的机器永远收不到电。
+        // apply 只在整组面全 NONE 时动手，玩家配置过任意一面的机器不会被覆盖。
+        MachineFaceDefaults.apply(this.machine);
         this.inventory.clear();
         ListTag items = mine.getList(ITEMS_KEY);
         int version = mine.getInt(LAYOUT_KEY, 1);
@@ -741,9 +888,16 @@ public final class MachineBlockEntityController extends BlockEntityController {
     }
 
     public World world() {
-        return this.blockEntity.world == null
-                ? null
-                : (World) this.blockEntity.world.world().platformWorld();
+        if (this.blockEntity.world == null) {
+            return null;
+        }
+        try {
+            var ceWorld = this.blockEntity.world.world();
+            return ceWorld == null ? null : (World) ceWorld.platformWorld();
+        } catch (RuntimeException e) {
+            // 区块卸载过程中 CE 可能已经断开 world 引用；这里返回 null，卸载流程继续走清理。
+            return null;
+        }
     }
 
     /** 标记本机器自己的容器（点击/拖动要拦，以后 GUI 也要认），与别的插件的容器区分开。 */

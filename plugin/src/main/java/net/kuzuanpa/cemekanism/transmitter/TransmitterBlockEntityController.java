@@ -492,32 +492,35 @@ public final class TransmitterBlockEntityController extends BlockEntityControlle
         });
     }
 
+    /** 只移除手臂/中心显示实体；幂等，供方块破坏事件兜底调用。 */
+    public void removeDisplays() {
+        if (this.armRenderer != null) {
+            this.armRenderer.remove();
+            this.armRenderer = null;
+        }
+    }
+
     @Override
     public void onUnload() {
+        // 显示实体先清掉：logistics 不可用时也不能把模型留在世界里。
+        removeDisplays();
         Logistics logistics = logistics();
         if (logistics == null) {
             return;
         }
         logistics.setLoaded(this, false);
         logistics.watchRedstone(this, false);
-        if (this.armRenderer != null) {
-            this.armRenderer.remove();
-            this.armRenderer = null;
-        }
         this.placed = false;
     }
 
     @Override
     public void onRemove() {
+        removeDisplays();
         Logistics logistics = logistics();
         if (logistics == null) {
             return;
         }
         logistics.remove(this);
-        if (this.armRenderer != null) {
-            this.armRenderer.remove();
-            this.armRenderer = null;
-        }
         this.placed = false;
     }
 
