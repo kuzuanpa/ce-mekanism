@@ -210,7 +210,15 @@ public final class CeMekanismPlugin extends JavaPlugin {
     }
 
     private MachineBlockEntityController machineAt(World world, int x, int y, int z, boolean quiet) {
-        // 先摸一下这个方块：CE 的区块数据是按需装载的，直接查 loadedChunkMap 会扑空（方块实体还没建起来）
+        // 未装载的区块一律不探测。world.getBlockAt() 内部走 Level#getChunk，
+        // 在区块卸载回调（CEChunk.deactivateAllBlockEntities → MachineBlockEntityController.onUnload
+        // → Logistics.detachMachine → refreshAround → reconcile → machineAtQuiet）里调用，
+        // 会把刚卸载的区块同步拉回来，形成 卸载→加载→卸载 的抖动，主线程整段挂在 chunk 系统上。
+        // 与 Logistics#transmitterAt / #heatPartnerAt 的 chunkLoaded 守卫保持同一口径。
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+            return null;
+        }
+        // 区块确认已装载后，再摸一下这个方块：CE 的区块数据是按需装载的，直接查 loadedChunkMap 会扑空（方块实体还没建起来）
         CraftEngineBlocks.getCustomBlockState(world.getBlockAt(x, y, z));
         CEWorld ceWorld = BukkitAdaptor.adapt(world).storageWorld();
         BlockPos pos = new BlockPos(x, y, z);

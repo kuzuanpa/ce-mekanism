@@ -436,8 +436,20 @@ public final class MachineBlockEntityController extends BlockEntityController {
         if (world == null) {
             return;
         }
-        this.machine.setPowered(world.getBlockAt(this.blockEntity.pos.x(), this.blockEntity.pos.y(),
-                this.blockEntity.pos.z()).isBlockPowered());
+        int bx = this.blockEntity.pos.x();
+        int by = this.blockEntity.pos.y();
+        int bz = this.blockEntity.pos.z();
+        // isBlockPowered() 会向六个方向读红石信号，隔壁区块没装载时 CraftBlock 会同步把区块拉起来。
+        // 在区块加载回调（onLoad → refreshRedstone）里踩到这一步，就会 加载→查邻居→再加载 级联下去。
+        // 所以只在本区块与 3×3 邻区块都就绪时才读真值；没就绪就跳过，下一趟 tick 还会再问。
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (!world.isChunkLoaded((bx >> 4) + dx, (bz >> 4) + dz)) {
+                    return;
+                }
+            }
+        }
+        this.machine.setPowered(world.getBlockAt(bx, by, bz).isBlockPowered());
     }
 
     /** 开界面：皮肤字形 + 槽位摆位 + 能量/流体/进度条；刷新由 GuiSessions 统一节流。 */
