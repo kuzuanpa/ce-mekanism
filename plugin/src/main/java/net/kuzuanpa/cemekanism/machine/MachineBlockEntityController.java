@@ -5,14 +5,19 @@ import mekcore.chemical.Chemicals;
 import mekcore.chemical.Radiation;
 import mekcore.item.ItemSlotSpec;
 import mekcore.item.ItemSlotKind;
+import mekcore.machine.Direction;
 import mekcore.machine.FactoryTier;
 import mekcore.machine.Machine;
 import mekcore.machine.MachineBlueprint;
 import mekcore.machine.SideMode;
 import mekcore.machine.WorkState;
+import mekcore.resource.ResourceStack;
+import mekcore.resource.ResourceTank;
+import mekcore.resource.Transaction;
 import mekcore.recipe.Recipe;
 import mekcore.sim.Tickable;
 import net.kuzuanpa.cemekanism.CeMekanismPlugin;
+import net.kuzuanpa.cemekanism.generated.GeneratedContent;
 import net.kuzuanpa.cemekanism.gui.GuiComponents;
 import net.kuzuanpa.cemekanism.gui.GuiLayout;
 import net.kuzuanpa.cemekanism.gui.GuiSessions;
@@ -74,6 +79,8 @@ public final class MachineBlockEntityController extends BlockEntityController {
     private final Object containerHandle;
     private String taskId;
     private final int infuseSlot;
+    /** 发电机（source）：每刻把缓存电量直接发射给相邻机器，复刻上游 TileEntityGenerator。 */
+    private final boolean energySource;
     private final WindRotorRenderer windRotor;
     private final EnergyCubeCoreRenderer energyCore;
     private final EnergyCubePortRenderer energyPorts;
@@ -115,6 +122,12 @@ public final class MachineBlockEntityController extends BlockEntityController {
                 // 储量变化必须能在休眠后唤醒；核心本身也按游戏刻持续旋转。
                 return true;
             }
+            if (MachineBlockEntityController.this.energySource
+                    && m.energyTank().map(tank -> tank.amount() > 0).orElse(false)) {
+                // 发电机缓存里有电就必须继续跑：上游每刻都会 emit 给相邻方块，缓存满了也不能睡，
+                // 否则贴在一起的机器永远等不到电。
+                return true;
+            }
             return MachineBlockEntityController.this.machine.needsTick()
                     || MachineBlockEntityController.this.infusionReady();
         }
@@ -124,6 +137,9 @@ public final class MachineBlockEntityController extends BlockEntityController {
             MachineBlockEntityController.this.feedInfusion();
             boolean dumping = MachineBlockEntityController.this.machine.hasDumpWork();
             long joules = MachineBlockEntityController.this.machine.tick();
+            if (MachineBlockEntityController.this.energySource) {
+                MachineBlockEntityController.this.pushAdjacentEnergy();
+            }
             if (MachineBlockEntityController.this.windRotor != null) {
                 MachineBlockEntityController.this.windRotor.tick();
             }
@@ -146,6 +162,81 @@ public final class MachineBlockEntityController extends BlockEntityController {
             return MachineBlockEntityController.this.machine.describe();
         }
     };
+
+    /**
+     * 上游 {@code TileEntityGenerator.onUpdateServer} 的邻面直供：发电机每刻把缓存电量
+     * 发射给"能量输出面"相邻的机器（不需要线缆）。线缆仍由电网从同一个缓存里拉，两者竞争，
+     * 谁先拿走算谁的；缓存被拉空后不再发送。
+     */
+    private void pushAdjacentEnergy() {
+        World world = world();
+        if (world == null) {
+            return;
+        }
+        ResourceTank source = this.machine.energyTank().orElse(null);
+        if (source == null || source.capacity() <= 0) {
+            return;
+        }
+        for (Direction direction : Direction.values()) {
+            if (source.amount() <= 0) {
+                return;
+            }
+            // 只从发电机自己的能量输出面发射（热力发电机默认 front，配置器可改）。
+            if (!this.machine.side(MachineBlueprint.ENERGY_PORT, direction).allowsExtract()) {
+                continue;
+            }
+            MachineBlockEntityController neighbour = this.plugin.machineAtQuiet(world,
+                    x() + offsetX(direction), y() + offsetY(direction), z() + offsetZ(direction));
+            if (neighbour == null || neighbour == this) {
+                continue;
+            }
+            Machine target = neighbour.machine();
+            ResourceTank tank = target.energyTank().orElse(null);
+            if (tank == null || tank.capacity() <= 0) {
+                continue;
+            }
+            if ("source".equals(GeneratedContent.MACHINE_ROLES.getOrDefault(
+                    target.blueprint().id(), "machine"))) {
+                continue;                                  // 发电机之间不互相推，避免来回搬电
+            }
+            if (!target.side(MachineBlueprint.ENERGY_PORT, direction.opposite()).allowsInsert()) {
+                continue;                                  // 目标那一面不是"能量输入"
+            }
+            long extracted = source.extract(source.amount(), Transaction.EXECUTE);
+            if (extracted <= 0) {
+                return;
+            }
+            long accepted = tank.insert(ResourceStack.energy(extracted), Transaction.EXECUTE);
+            if (accepted < extracted) {
+                // 目标只吃下一部分：剩下的还回自己，下一步交给线缆/下一个邻居。
+                source.insert(ResourceStack.energy(extracted - accepted), Transaction.EXECUTE);
+            }
+        }
+    }
+
+    private static int offsetX(Direction direction) {
+        return switch (direction) {
+            case EAST -> 1;
+            case WEST -> -1;
+            default -> 0;
+        };
+    }
+
+    private static int offsetY(Direction direction) {
+        return switch (direction) {
+            case UP -> 1;
+            case DOWN -> -1;
+            default -> 0;
+        };
+    }
+
+    private static int offsetZ(Direction direction) {
+        return switch (direction) {
+            case SOUTH -> 1;
+            case NORTH -> -1;
+            default -> 0;
+        };
+    }
 
     public MachineBlockEntityController(BlockEntity blockEntity, CeMekanismPlugin plugin) {
         super(blockEntity);
@@ -182,6 +273,9 @@ public final class MachineBlockEntityController extends BlockEntityController {
                 ? new EnergyCubePortRenderer(this) : null;
         GeneratorDefaults.apply(this.machine, blueprintId, facing());
         StorageRuntime.defaults(this.machine, facing());
+        // 普通机器没有默认面时补上能量输入/物品输入（上游 Mekanism 的默认口径），否则贴一起也收不到电。
+        MachineFaceDefaults.apply(this.machine);
+        this.energySource = "source".equals(GeneratedContent.MACHINE_ROLES.getOrDefault(blueprintId, "machine"));
         this.infuseSlot = this.handler.indexOf(InfusionFeeder.slotName());
         this.taskId = blueprintId + '@' + blockEntity.pos.x() + ',' + blockEntity.pos.y()
                 + ',' + blockEntity.pos.z();
@@ -663,6 +757,9 @@ public final class MachineBlockEntityController extends BlockEntityController {
                         this.taskId, e.getMessage()));
             }
         }
+        // 旧版本存档里的机器六面全是「关」：读档后补一次默认输入面，否则老存档的机器永远收不到电。
+        // apply 只在整组面全 NONE 时动手，玩家配置过任意一面的机器不会被覆盖。
+        MachineFaceDefaults.apply(this.machine);
         this.inventory.clear();
         ListTag items = mine.getList(ITEMS_KEY);
         int version = mine.getInt(LAYOUT_KEY, 1);

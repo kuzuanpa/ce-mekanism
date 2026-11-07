@@ -548,6 +548,20 @@ recipes:
     result:
       id: mek:energy_tablet
       count: 1
+  mek:crusher:
+    type: shaped
+    pattern:
+      - RCR
+      - BXB
+      - RCR
+    ingredients:
+      B: minecraft:lava_bucket
+      C: '#mek:circuits/basic'
+      R: minecraft:redstone
+      X: mek:steel_casing
+    result:
+      id: mek:crusher
+      count: 1
   mek:enrichment_chamber:
     type: shaped
     pattern:
@@ -2656,3 +2670,752 @@ recipes:
     result:
       id: mek:turbine_vent
       count: 2
+  mek:chemical_injection_chamber_factory_basic:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: minecraft:redstone
+      C: '#mek:circuits/basic'
+      I: minecraft:iron_ingot
+      P: mek:chemical_injection_chamber
+    result:
+      id: mek:chemical_injection_chamber_factory_basic
+      count: 1
+
+  mek:chemical_injection_chamber_factory_advanced:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/infused'
+      C: '#mek:circuits/advanced'
+      I: '#mek:ingots/osmium'
+      P: mek:chemical_injection_chamber_factory_basic
+    result:
+      id: mek:chemical_injection_chamber_factory_advanced
+      count: 1
+
+  mek:chemical_injection_chamber_factory_elite:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/reinforced'
+      C: '#mek:circuits/elite'
+      I: minecraft:gold_ingot
+      P: mek:chemical_injection_chamber_factory_advanced
+    result:
+      id: mek:chemical_injection_chamber_factory_elite
+      count: 1
+
+  mek:chemical_injection_chamber_factory_ultimate:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/atomic'
+      C: '#mek:circuits/ultimate'
+      I: minecraft:diamond
+      P: mek:chemical_injection_chamber_factory_elite
+    result:
+      id: mek:chemical_injection_chamber_factory_ultimate
+      count: 1
+
+  mek:combiner_factory_basic:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: minecraft:redstone
+      C: '#mek:circuits/basic'
+      I: minecraft:iron_ingot
+      P: mek:combiner
+    result:
+      id: mek:combiner_factory_basic
+      count: 1
+
+  mek:combiner_factory_advanced:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/infused'
+      C: '#mek:circuits/advanced'
+      I: '#mek:ingots/osmium'
+      P: mek:combiner_factory_basic
+    result:
+      id: mek:combiner_factory_advanced
+      count: 1
+
+  mek:combiner_factory_elite:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/reinforced'
+      C: '#mek:circuits/elite'
+      I: minecraft:gold_ingot
+      P: mek:combiner_factory_advanced
+    result:
+      id: mek:combiner_factory_elite
+      count: 1
+
+  mek:combiner_factory_ultimate:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/atomic'
+      C: '#mek:circuits/ultimate'
+      I: minecraft:diamond
+      P: mek:combiner_factory_elite
+    result:
+      id: mek:combiner_factory_ultimate
+      count: 1
+
+  mek:crusher_factory_basic:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: minecraft:redstone
+      C: '#mek:circuits/basic'
+      I: minecraft:iron_ingot
+      P: mek:crusher
+    result:
+      id: mek:crusher_factory_basic
+      count: 1
+
+  mek:crusher_factory_advanced:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/infused'
+      C: '#mek:circuits/advanced'
+      I: '#mek:ingots/osmium'
+      P: mek:crusher_factory_basic
+    result:
+      id: mek:crusher_factory_advanced
+      count: 1
+
+  mek:crusher_factory_elite:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/reinforced'
+      C: '#mek:circuits/elite'
+      I: minecraft:gold_ingot
+      P: mek:crusher_factory_advanced
+    result:
+      id: mek:crusher_factory_elite
+      count: 1
+
+  mek:crusher_factory_ultimate:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/atomic'
+      C: '#mek:circuits/ultimate'
+      I: minecraft:diamond
+      P: mek:crusher_factory_elite
+    result:
+      id: mek:crusher_factory_ultimate
+      count: 1
+
+  mek:energized_smelter_factory_basic:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: minecraft:redstone
+      C: '#mek:circuits/basic'
+      I: minecraft:iron_ingot
+      P: mek:energized_smelter
+    result:
+      id: mek:energized_smelter_factory_basic
+      count: 1
+
+  mek:energized_smelter_factory_advanced:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/infused'
+      C: '#mek:circuits/advanced'
+      I: '#mek:ingots/osmium'
+      P: mek:energized_smelter_factory_basic
+    result:
+      id: mek:energized_smelter_factory_advanced
+      count: 1
+
+  mek:energized_smelter_factory_elite:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/reinforced'
+      C: '#mek:circuits/elite'
+      I: minecraft:gold_ingot
+      P: mek:energized_smelter_factory_advanced
+    result:
+      id: mek:energized_smelter_factory_elite
+      count: 1
+
+  mek:energized_smelter_factory_ultimate:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/atomic'
+      C: '#mek:circuits/ultimate'
+      I: minecraft:diamond
+      P: mek:energized_smelter_factory_elite
+    result:
+      id: mek:energized_smelter_factory_ultimate
+      count: 1
+
+  mek:enrichment_chamber_factory_basic:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: minecraft:redstone
+      C: '#mek:circuits/basic'
+      I: minecraft:iron_ingot
+      P: mek:enrichment_chamber
+    result:
+      id: mek:enrichment_chamber_factory_basic
+      count: 1
+
+  mek:enrichment_chamber_factory_advanced:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/infused'
+      C: '#mek:circuits/advanced'
+      I: '#mek:ingots/osmium'
+      P: mek:enrichment_chamber_factory_basic
+    result:
+      id: mek:enrichment_chamber_factory_advanced
+      count: 1
+
+  mek:enrichment_chamber_factory_elite:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/reinforced'
+      C: '#mek:circuits/elite'
+      I: minecraft:gold_ingot
+      P: mek:enrichment_chamber_factory_advanced
+    result:
+      id: mek:enrichment_chamber_factory_elite
+      count: 1
+
+  mek:enrichment_chamber_factory_ultimate:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/atomic'
+      C: '#mek:circuits/ultimate'
+      I: minecraft:diamond
+      P: mek:enrichment_chamber_factory_elite
+    result:
+      id: mek:enrichment_chamber_factory_ultimate
+      count: 1
+
+  mek:metallurgic_infuser_factory_basic:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: minecraft:redstone
+      C: '#mek:circuits/basic'
+      I: minecraft:iron_ingot
+      P: mek:metallurgic_infuser
+    result:
+      id: mek:metallurgic_infuser_factory_basic
+      count: 1
+
+  mek:metallurgic_infuser_factory_advanced:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/infused'
+      C: '#mek:circuits/advanced'
+      I: '#mek:ingots/osmium'
+      P: mek:metallurgic_infuser_factory_basic
+    result:
+      id: mek:metallurgic_infuser_factory_advanced
+      count: 1
+
+  mek:metallurgic_infuser_factory_elite:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/reinforced'
+      C: '#mek:circuits/elite'
+      I: minecraft:gold_ingot
+      P: mek:metallurgic_infuser_factory_advanced
+    result:
+      id: mek:metallurgic_infuser_factory_elite
+      count: 1
+
+  mek:metallurgic_infuser_factory_ultimate:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/atomic'
+      C: '#mek:circuits/ultimate'
+      I: minecraft:diamond
+      P: mek:metallurgic_infuser_factory_elite
+    result:
+      id: mek:metallurgic_infuser_factory_ultimate
+      count: 1
+
+  mek:osmium_compressor_factory_basic:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: minecraft:redstone
+      C: '#mek:circuits/basic'
+      I: minecraft:iron_ingot
+      P: mek:osmium_compressor
+    result:
+      id: mek:osmium_compressor_factory_basic
+      count: 1
+
+  mek:osmium_compressor_factory_advanced:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/infused'
+      C: '#mek:circuits/advanced'
+      I: '#mek:ingots/osmium'
+      P: mek:osmium_compressor_factory_basic
+    result:
+      id: mek:osmium_compressor_factory_advanced
+      count: 1
+
+  mek:osmium_compressor_factory_elite:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/reinforced'
+      C: '#mek:circuits/elite'
+      I: minecraft:gold_ingot
+      P: mek:osmium_compressor_factory_advanced
+    result:
+      id: mek:osmium_compressor_factory_elite
+      count: 1
+
+  mek:osmium_compressor_factory_ultimate:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/atomic'
+      C: '#mek:circuits/ultimate'
+      I: minecraft:diamond
+      P: mek:osmium_compressor_factory_elite
+    result:
+      id: mek:osmium_compressor_factory_ultimate
+      count: 1
+
+  mek:precision_sawmill_factory_basic:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: minecraft:redstone
+      C: '#mek:circuits/basic'
+      I: minecraft:iron_ingot
+      P: mek:precision_sawmill
+    result:
+      id: mek:precision_sawmill_factory_basic
+      count: 1
+
+  mek:precision_sawmill_factory_advanced:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/infused'
+      C: '#mek:circuits/advanced'
+      I: '#mek:ingots/osmium'
+      P: mek:precision_sawmill_factory_basic
+    result:
+      id: mek:precision_sawmill_factory_advanced
+      count: 1
+
+  mek:precision_sawmill_factory_elite:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/reinforced'
+      C: '#mek:circuits/elite'
+      I: minecraft:gold_ingot
+      P: mek:precision_sawmill_factory_advanced
+    result:
+      id: mek:precision_sawmill_factory_elite
+      count: 1
+
+  mek:precision_sawmill_factory_ultimate:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/atomic'
+      C: '#mek:circuits/ultimate'
+      I: minecraft:diamond
+      P: mek:precision_sawmill_factory_elite
+    result:
+      id: mek:precision_sawmill_factory_ultimate
+      count: 1
+
+  mek:purification_chamber_factory_basic:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: minecraft:redstone
+      C: '#mek:circuits/basic'
+      I: minecraft:iron_ingot
+      P: mek:purification_chamber
+    result:
+      id: mek:purification_chamber_factory_basic
+      count: 1
+
+  mek:purification_chamber_factory_advanced:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/infused'
+      C: '#mek:circuits/advanced'
+      I: '#mek:ingots/osmium'
+      P: mek:purification_chamber_factory_basic
+    result:
+      id: mek:purification_chamber_factory_advanced
+      count: 1
+
+  mek:purification_chamber_factory_elite:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/reinforced'
+      C: '#mek:circuits/elite'
+      I: minecraft:gold_ingot
+      P: mek:purification_chamber_factory_advanced
+    result:
+      id: mek:purification_chamber_factory_elite
+      count: 1
+
+  mek:purification_chamber_factory_ultimate:
+    type: shaped
+    pattern:
+      - ACA
+      - IPI
+      - ACA
+    ingredients:
+      A: '#mek:alloys/atomic'
+      C: '#mek:circuits/ultimate'
+      I: minecraft:diamond
+      P: mek:purification_chamber_factory_elite
+    result:
+      id: mek:purification_chamber_factory_ultimate
+      count: 1
+
+  mek:hdpe_stick:
+    type: shaped
+    pattern:
+      - '#'
+      - '#'
+    ingredients:
+      '#': mek:hdpe_rod
+    result:
+      id: mek:hdpe_stick
+      count: 1
+
+  mek:hdpe_rod:
+    type: shaped
+    pattern:
+      - '##'
+      - '##'
+    ingredients:
+      '#': mek:hdpe_pellet
+    result:
+      id: mek:hdpe_rod
+      count: 1
+
+  mek:dye_base:
+    type: shapeless
+    ingredients:
+      - mek:sawdust
+      - mek:sawdust
+      - minecraft:clay_ball
+    result:
+      id: mek:dye_base
+      count: 3
+
+  mek:processing/uranium/raw/from_raw_block:
+    type: shapeless
+    ingredients:
+      - mek:block_raw_uranium
+    result:
+      id: mek:raw_uranium
+      count: 9
+
+  mek:processing/tin/raw/from_raw_block:
+    type: shapeless
+    ingredients:
+      - mek:block_raw_tin
+    result:
+      id: mek:raw_tin
+      count: 9
+
+  mek:processing/osmium/raw/from_raw_block:
+    type: shapeless
+    ingredients:
+      - mek:block_raw_osmium
+    result:
+      id: mek:raw_osmium
+      count: 9
+
+  mek:processing/lead/raw/from_raw_block:
+    type: shapeless
+    ingredients:
+      - mek:block_raw_lead
+    result:
+      id: mek:raw_lead
+      count: 9
+
+  mek:processing/uranium/nugget/from_ingot:
+    type: shapeless
+    ingredients:
+      - mek:ingot_uranium
+    result:
+      id: mek:nugget_uranium
+      count: 9
+
+  mek:processing/tin/nugget/from_ingot:
+    type: shapeless
+    ingredients:
+      - mek:ingot_tin
+    result:
+      id: mek:nugget_tin
+      count: 9
+
+  mek:processing/osmium/nugget/from_ingot:
+    type: shapeless
+    ingredients:
+      - mek:ingot_osmium
+    result:
+      id: mek:nugget_osmium
+      count: 9
+
+  mek:processing/lead/nugget/from_ingot:
+    type: shapeless
+    ingredients:
+      - mek:ingot_lead
+    result:
+      id: mek:nugget_lead
+      count: 9
+
+  mek:nuggets/steel:
+    type: shapeless
+    ingredients:
+      - mek:ingot_steel
+    result:
+      id: mek:nugget_steel
+      count: 9
+
+  mek:nuggets/bronze:
+    type: shapeless
+    ingredients:
+      - mek:ingot_bronze
+    result:
+      id: mek:nugget_bronze
+      count: 9
+
+  mek:nuggets/refined_obsidian:
+    type: shapeless
+    ingredients:
+      - mek:ingot_refined_obsidian
+    result:
+      id: mek:nugget_refined_obsidian
+      count: 9
+
+  mek:nuggets/refined_glowstone:
+    type: shapeless
+    ingredients:
+      - mek:ingot_refined_glowstone
+    result:
+      id: mek:nugget_refined_glowstone
+      count: 9
+  mek:speed_upgrade:
+    type: shaped
+    pattern:
+      - ' G '
+      - 'A#A'
+      - ' G '
+    ingredients:
+      G: minecraft:glass
+      A: '#mek:alloys/infused'
+      '#': mek:dust_osmium
+    result:
+      id: mek:speed_upgrade
+      count: 1
+
+  mek:energy_upgrade:
+    type: shaped
+    pattern:
+      - ' G '
+      - 'A#A'
+      - ' G '
+    ingredients:
+      G: minecraft:glass
+      A: '#mek:alloys/infused'
+      '#': mek:dust_gold
+    result:
+      id: mek:energy_upgrade
+      count: 1
+
+  mek:chemical_upgrade:
+    type: shaped
+    pattern:
+      - ' G '
+      - 'A#A'
+      - ' G '
+    ingredients:
+      G: minecraft:glass
+      A: '#mek:alloys/infused'
+      '#': mek:dust_iron
+    result:
+      id: mek:chemical_upgrade
+      count: 1
+
+  mek:filter_upgrade:
+    type: shaped
+    pattern:
+      - ' G '
+      - 'A#A'
+      - ' G '
+    ingredients:
+      G: minecraft:glass
+      A: '#mek:alloys/infused'
+      '#': mek:dust_tin
+    result:
+      id: mek:filter_upgrade
+      count: 1
+
+  mek:anchor_upgrade:
+    type: shaped
+    pattern:
+      - ' G '
+      - 'A#A'
+      - ' G '
+    ingredients:
+      G: minecraft:glass
+      A: '#mek:alloys/infused'
+      '#': mek:dust_diamond
+    result:
+      id: mek:anchor_upgrade
+      count: 1
+
+  mek:muffling_upgrade:
+    type: shaped
+    pattern:
+      - ' # '
+      - '#I#'
+      - ' # '
+    ingredients:
+      '#': minecraft:white_wool
+      I: minecraft:iron_ingot
+    result:
+      id: mek:muffling_upgrade
+      count: 1
