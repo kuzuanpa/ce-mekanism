@@ -58,15 +58,31 @@ public final class UpgradeInstallerListener implements Listener {
         if (gui == null) {
             return;
         }
-        event.setCancelled(true);
         Player player = (Player) event.getWhoClicked();
         if (!gui.controller().machine().canAccess(player.getUniqueId().toString())) {
             player.closeInventory();
+            event.setCancelled(true);
             return;
         }
 
         int raw = event.getRawSlot();
-        if (raw >= 0 && raw < event.getView().getTopInventory().getSize()) {
+        int topSize = event.getView().getTopInventory().getSize();
+        if (raw < 0 || raw >= topSize) {
+            // 玩家背包：保留原版点击语义，否则左键拿不起升级物品，没法再点到升级槽里。
+            // 只拦截“Shift 点击升级物品”这一种，直接安装。
+            if (event.isShiftClick()
+                    && event.getClickedInventory() instanceof org.bukkit.inventory.PlayerInventory) {
+                // Shift 点击背包：升级物品直接安装；其他物品也拦掉，避免被原版塞进只读的升级界面。
+                event.setCancelled(true);
+                ItemStack source = event.getCurrentItem();
+                if (gui.definitionOf(source) != null) {
+                    gui.installFromPlayerSlot(player, event.getSlot());
+                }
+            }
+            return;
+        }
+        event.setCancelled(true);
+        if (raw >= 0 && raw < topSize) {
             UpgradeDefinition definition = gui.definitionAt(raw);
             if (definition == null) {
                 return;
@@ -88,13 +104,6 @@ public final class UpgradeInstallerListener implements Listener {
             return;
         }
 
-        if (event.isShiftClick() && event.getClickedInventory() instanceof org.bukkit.inventory.PlayerInventory) {
-            ItemStack source = event.getCurrentItem();
-            UpgradeDefinition definition = gui.definitionOf(source);
-            if (definition != null) {
-                gui.installFromPlayerSlot(player, event.getSlot());
-            }
-        }
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
