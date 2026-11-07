@@ -122,6 +122,7 @@ public final class CeMekanismPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new MultiblockListener(this), this);
         Bukkit.getPluginManager().registerEvents(new TeleporterFrequencyGui.Events(), this);
         Bukkit.getPluginManager().registerEvents(new TransmitterListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new DisplayCleanupListener(this), this);
         Bukkit.getPluginManager().registerEvents(new RadiationListener(this), this);
         PluginCommand command = getCommand("mek");
         if (command != null) {

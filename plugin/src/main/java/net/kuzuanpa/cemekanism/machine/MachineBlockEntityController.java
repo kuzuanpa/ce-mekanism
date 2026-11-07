@@ -664,27 +664,49 @@ public final class MachineBlockEntityController extends BlockEntityController {
         this.pendingDrops.clear();
     }
 
+    /**
+     * 只移除本机器的显示实体（风力叶片/能量核心/端口/内容），不动存档与容器。
+     * 方块被玩家挖掉时 CE 不一定会走到 onRemove，所以由破坏事件兜底调用；幂等。
+     */
+    public void removeDisplays() {
+        safeUnload("wind_rotor", () -> {
+            if (this.windRotor != null) {
+                this.windRotor.remove();
+            }
+        });
+        safeUnload("energy_core", () -> {
+            if (this.energyCore != null) {
+                this.energyCore.remove();
+            }
+        });
+        safeUnload("energy_ports", () -> {
+            if (this.energyPorts != null) {
+                this.energyPorts.remove();
+            }
+        });
+        safeUnload("storage_contents", () -> this.storageContents.remove());
+    }
+
     @Override
     public void onUnload() {
-        World world = world();
+        // 显示实体先清：后面任何一步抛异常（CE 卸载失败重试）都不能把模型留在世界里。
+        removeDisplays();
+        World world;
+        try {
+            world = world();
+        } catch (RuntimeException e) {
+            warnUnload("world", e);
+            world = null;
+        }
         if (world != null) {
-            StorageRuntime.detach(this);
-            this.plugin.logistics(world).detachMachine(this);
-            this.plugin.radiation(world).unregister(this.taskId);
+            final World w = world;
+            safeUnload("storage", () -> StorageRuntime.detach(this));
+            safeUnload("logistics", () -> this.plugin.logistics(w).detachMachine(this));
+            safeUnload("radiation", () -> this.plugin.radiation(w).unregister(this.taskId));
         }
-        if (this.windRotor != null) {
-            this.windRotor.remove();
-        }
-        if (this.energyCore != null) {
-            this.energyCore.remove();
-        }
-        if (this.energyPorts != null) {
-            this.energyPorts.remove();
-        }
-        this.storageContents.remove();
         closeUpgradeInstallers();
         closeRecipeBrowsers();
-        this.plugin.guiSessions().close(this.holder);
+        safeUnload("gui", () -> this.plugin.guiSessions().close(this.holder));
         for (var viewer : List.copyOf(this.inventory.getViewers())) viewer.closeInventory();
         unregister();
         MachineContexts.detach(this.machine);
@@ -692,39 +714,55 @@ public final class MachineBlockEntityController extends BlockEntityController {
 
     @Override
     public void onRemove() {
-        World world = world();
+        removeDisplays();
+        World world;
+        try {
+            world = world();
+        } catch (RuntimeException e) {
+            warnUnload("world", e);
+            world = null;
+        }
         if (world != null) {
-            StorageRuntime.detach(this);
-            this.plugin.logistics(world).detachMachine(this);
-            this.plugin.radiation(world).unregister(this.taskId);
+            final World w = world;
+            safeUnload("storage", () -> StorageRuntime.detach(this));
+            safeUnload("logistics", () -> this.plugin.logistics(w).detachMachine(this));
+            safeUnload("radiation", () -> this.plugin.radiation(w).unregister(this.taskId));
         }
-        if (this.windRotor != null) {
-            this.windRotor.remove();
-        }
-        if (this.energyCore != null) {
-            this.energyCore.remove();
-        }
-        if (this.energyPorts != null) {
-            this.energyPorts.remove();
-        }
-        this.storageContents.remove();
         closeUpgradeInstallers();
         closeRecipeBrowsers();
-        StorageListener.refundBuffer(this);
-        this.plugin.guiSessions().close(this.holder);
+        safeUnload("refund", () -> StorageListener.refundBuffer(this));
+        safeUnload("gui", () -> this.plugin.guiSessions().close(this.holder));
         for (var viewer : List.copyOf(this.inventory.getViewers())) viewer.closeInventory();
         unregister();
         MachineContexts.detach(this.machine);
         if (world != null) {
-            Location at = new Location(world, this.blockEntity.pos.x() + 0.5,
-                    this.blockEntity.pos.y() + 0.5, this.blockEntity.pos.z() + 0.5);
-            for (ItemStack stack : this.inventory.getContents()) {
-                if (!this.suppressStorageDrops && stack != null && !stack.getType().isAir() && !GuiText.isOverlay(stack)) {
-                    world.dropItemNaturally(at, stack);
+            final World w = world;
+            safeUnload("drops", () -> {
+                Location at = new Location(w, this.blockEntity.pos.x() + 0.5,
+                        this.blockEntity.pos.y() + 0.5, this.blockEntity.pos.z() + 0.5);
+                for (ItemStack stack : this.inventory.getContents()) {
+                    if (!this.suppressStorageDrops && stack != null && !stack.getType().isAir()
+                            && !GuiText.isOverlay(stack)) {
+                        w.dropItemNaturally(at, stack);
+                    }
                 }
-            }
+            });
         }
         this.inventory.clear();
+    }
+
+    /** 卸载/销毁时每一步都独立兜底：CE 卸载失败会反复重试，绝不能让单点异常拖住整个卸载。 */
+    private void safeUnload(String step, Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException e) {
+            warnUnload(step, e);
+        }
+    }
+
+    private void warnUnload(String step, RuntimeException error) {
+        this.plugin.getLogger().log(java.util.logging.Level.WARNING,
+                "machine " + this.taskId + " unload step '" + step + "' failed", error);
     }
 
     @Override
@@ -850,9 +888,16 @@ public final class MachineBlockEntityController extends BlockEntityController {
     }
 
     public World world() {
-        return this.blockEntity.world == null
-                ? null
-                : (World) this.blockEntity.world.world().platformWorld();
+        if (this.blockEntity.world == null) {
+            return null;
+        }
+        try {
+            var ceWorld = this.blockEntity.world.world();
+            return ceWorld == null ? null : (World) ceWorld.platformWorld();
+        } catch (RuntimeException e) {
+            // 区块卸载过程中 CE 可能已经断开 world 引用；这里返回 null，卸载流程继续走清理。
+            return null;
+        }
     }
 
     /** 标记本机器自己的容器（点击/拖动要拦，以后 GUI 也要认），与别的插件的容器区分开。 */
